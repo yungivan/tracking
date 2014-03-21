@@ -225,6 +225,7 @@ class ExactInference(InferenceModule):
             newPosDist = self.getPositionDistribution(self.setGhostPosition(gameState, move))
             for newPos, prob in newPosDist.items():
                 time[newPos] += self.beliefs[move] * prob
+        
         self.beliefs = time
 
     def getBeliefDistribution(self):
@@ -262,6 +263,15 @@ class ParticleFilter(InferenceModule):
             and will produce errors
         """
         "*** YOUR CODE HERE ***"
+        #print "initialize~~~~~~~~~~~~~~~~~"
+        beliefs = util.Counter()
+        self.particles = []
+        #print self.numParticles
+        #print self.legalPositions
+        for i in range(0, self.numParticles):
+            cycle = i%len(self.legalPositions)
+            self.particles.append(self.legalPositions[cycle])
+        #print len(self.particles)
 
     def observe(self, observation, gameState):
         """
@@ -296,8 +306,49 @@ class ParticleFilter(InferenceModule):
         emissionModel = busters.getObservationDistribution(noisyDistance)
         pacmanPosition = gameState.getPacmanPosition()
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
 
+        """
+        #print "observe~~~~~~~~~~~~~~~"
+        allPossible = util.Counter()
+        for p in self.particles:
+            trueDistance = util.manhattanDistance(p, pacmanPosition)
+            allPossible[p] = self.beliefs[p] * emissionModel[trueDistance]
+        allPossible.normalize()
+        self.beliefs = allPossible
+        """
+        if noisyDistance == None:
+            self.particles = []
+            for i in range(0, self.numParticles): 
+                self.particles.append(self.getJailPosition())
+            return
+        
+        consolidate = util.Counter()
+        for i in range(0, self.numParticles):
+            key = self.particles[i]
+            dist = util.manhattanDistance(pacmanPosition, key)
+            prob = emissionModel[dist]
+            #print prob
+            if key in consolidate.keys():
+                consolidate[key] += prob
+            else: 
+                consolidate[key] = prob
+
+        isAllZeros = 0
+        for x in consolidate:
+            if consolidate[x] != 0:
+                isAllZeros += 1
+        if isAllZeros == 0: 
+            return self.initializeUniformly(gameState)
+
+        newlist = []
+        consolidate.normalize()
+        #print consolidate
+        for i in range(0, self.numParticles):
+            newlist.append(util.sample(consolidate))
+        #print newlist
+        self.particles = newlist
+        
+        
     def elapseTime(self, gameState):
         """
         Update beliefs for a time step elapsing.
@@ -314,8 +365,15 @@ class ParticleFilter(InferenceModule):
         belief distribution
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
-
+        #util.raiseNotDefined()
+        #print "elapseTime~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        pacmanPosition = gameState.getPacmanPosition()
+        newPosDist = self.getPositionDistribution(self.setGhostPosition(gameState, pacmanPosition ))
+        for i in range(0, newPosDist):
+            self.particles[i] = util.sample(newPosDist)
+        #print newPosDist
+        
+        
     def getBeliefDistribution(self):
         """
           Return the agent's current belief state, a distribution over
@@ -323,7 +381,22 @@ class ParticleFilter(InferenceModule):
           essentially converts a list of particles into a belief distribution (a Counter object)
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        #util.raiseNotDefined()
+        #print "getBeliefDistribution~~~~~~~~~~~~~~~~~"
+        beliefcount = util.Counter()
+        particlecount = self.numParticles
+        #print particlecount
+        #print self.particles
+        for i in range(0, particlecount):
+            key = self.particles[i]
+            #print key
+            #print 1/particlecount
+            if key in beliefcount.keys():
+                beliefcount[key] += 1.0/particlecount
+            else:
+                beliefcount[key] = 1.0/particlecount
+        beliefcount.normalize()
+        return beliefcount
 
 class MarginalInference(InferenceModule):
     "A wrapper around the JointInference module that returns marginal beliefs about ghosts."
