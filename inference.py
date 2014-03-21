@@ -217,7 +217,15 @@ class ExactInference(InferenceModule):
         """
 
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        #util.raiseNotDefined()
+        pacmanPosition = gameState.getPacmanPosition()
+        time = util.Counter()
+        old = self.beliefs.copy()
+        for move in self.legalPositions:
+            newPosDist = self.getPositionDistribution(self.setGhostPosition(gameState, move))
+            for newPos, prob in newPosDist.items():
+                time[newPos] += self.beliefs[move] * prob
+        self.beliefs = time
 
     def getBeliefDistribution(self):
         return self.beliefs
