@@ -356,8 +356,8 @@ class ParticleFilter(InferenceModule):
         
         #print newPosDist
         for i in range(0, self.numParticles):
-            oldpos = self.particles[i]
-            dist = self.getPositionDistribution(self.setGhostPosition(gameState, oldpos ))
+            
+            dist = self.getPositionDistribution(self.setGhostPosition(gameState, self.particles[i] ))
             self.particles[i] = util.sample(dist)
 
     def getBeliefDistribution(self):
@@ -443,6 +443,22 @@ class JointParticleFilter:
 
         """
         "*** YOUR CODE HERE ***"
+        #print self.numParticles
+        #self.alreadyinjail = []
+        self.particles = []
+        posprod = list(itertools.product(self.legalPositions, repeat=self.numGhosts))
+        random.shuffle(posprod)
+
+        for i in range(0, self.numParticles):
+            cycle = i%len(posprod)
+            self.particles.append(posprod[cycle])
+        #print self.particles
+        """
+        for ghostnum in range(self.numGhosts):
+            for particlenum in range(self.numParticles): 
+                self.particles[particlenum] = self.getParticleWithGhostInJail(self.particles[particlenum], ghostnum)
+            return
+        """
 
     def addGhostAgent(self, agent):
         "Each ghost agent is registered separately and stored (in case they are different)."
@@ -489,6 +505,58 @@ class JointParticleFilter:
         emissionModels = [busters.getObservationDistribution(dist) for dist in noisyDistances]
 
         "*** YOUR CODE HERE ***"
+        #print emissionModels
+        
+        self.alreadyinjail = []
+        
+        #ghostcaptured = False
+        for ghostnum in range(self.numGhosts):
+            if noisyDistances[ghostnum] == None:
+                for particlenum in range(self.numParticles): 
+                    self.particles[particlenum] = self.getParticleWithGhostInJail(self.particles[particlenum], ghostnum)
+                self.alreadyinjail.append(ghostnum)
+                #print self.alreadyinjail
+                #print "~~~"
+                #ghostcaptured = True
+        #if ghostcaptured:
+        #    return
+        
+        consolidate = util.Counter()
+        for i in range(self.numParticles):
+            key = self.particles[i]
+            prob = 1
+            for j in range(self.numGhosts):
+                #print self.alreadyinjail
+                if j not in self.alreadyinjail: 
+                    dist = util.manhattanDistance(pacmanPosition, key[j])
+                    #print emissionModels[0]
+                    prob *= emissionModels[j][dist]
+            #print key
+            #print prob
+            if key in consolidate.keys():
+                consolidate[key] += prob
+            else: 
+                consolidate[key] = prob
+        #print consolidate
+        
+        isAllZeros = 0
+        for x in consolidate: 
+            if consolidate[x] != 0:
+                isAllZeros +=1
+        if isAllZeros == 0:
+            self.initializeParticles()
+            for ghostnum in self.alreadyinjail:
+                for particlenum in range(self.numParticles): 
+                    self.particles[particlenum] = self.getParticleWithGhostInJail(self.particles[particlenum], ghostnum)
+            return
+        
+        newlist = []
+        consolidate.normalize()
+        #print consolidate
+        for i in range(0, self.numParticles):
+            newlist.append(util.sample(consolidate))
+        self.particles = newlist
+        #print self.particles
 
     def getParticleWithGhostInJail(self, particle, ghostIndex):
         particle = list(particle)
@@ -549,7 +617,17 @@ class JointParticleFilter:
 
     def getBeliefDistribution(self):
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        beliefcount = util.Counter()
+        particlecount = self.numParticles
+        
+        for i in range(0, particlecount):
+            key = self.particles[i]
+            if key in beliefcount.keys():
+                beliefcount[key] += 1.0/particlecount
+            else:
+                beliefcount[key] = 1.0/particlecount
+        beliefcount.normalize()
+        return beliefcount
         
 # One JointInference module is shared globally across instances of MarginalInference
 jointInference = JointParticleFilter()
