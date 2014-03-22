@@ -443,8 +443,6 @@ class JointParticleFilter:
 
         """
         "*** YOUR CODE HERE ***"
-        #print self.numParticles
-        #self.alreadyinjail = []
         self.particles = []
         posprod = list(itertools.product(self.legalPositions, repeat=self.numGhosts))
         random.shuffle(posprod)
@@ -452,13 +450,7 @@ class JointParticleFilter:
         for i in range(0, self.numParticles):
             cycle = i%len(posprod)
             self.particles.append(posprod[cycle])
-        #print self.particles
-        """
-        for ghostnum in range(self.numGhosts):
-            for particlenum in range(self.numParticles): 
-                self.particles[particlenum] = self.getParticleWithGhostInJail(self.particles[particlenum], ghostnum)
-            return
-        """
+
 
     def addGhostAgent(self, agent):
         "Each ghost agent is registered separately and stored (in case they are different)."
@@ -505,39 +497,27 @@ class JointParticleFilter:
         emissionModels = [busters.getObservationDistribution(dist) for dist in noisyDistances]
 
         "*** YOUR CODE HERE ***"
-        #print emissionModels
         
         self.alreadyinjail = []
         
-        #ghostcaptured = False
         for ghostnum in range(self.numGhosts):
             if noisyDistances[ghostnum] == None:
                 for particlenum in range(self.numParticles): 
                     self.particles[particlenum] = self.getParticleWithGhostInJail(self.particles[particlenum], ghostnum)
                 self.alreadyinjail.append(ghostnum)
-                #print self.alreadyinjail
-                #print "~~~"
-                #ghostcaptured = True
-        #if ghostcaptured:
-        #    return
         
         consolidate = util.Counter()
         for i in range(self.numParticles):
             key = self.particles[i]
             prob = 1
             for j in range(self.numGhosts):
-                #print self.alreadyinjail
                 if j not in self.alreadyinjail: 
                     dist = util.manhattanDistance(pacmanPosition, key[j])
-                    #print emissionModels[0]
                     prob *= emissionModels[j][dist]
-            #print key
-            #print prob
             if key in consolidate.keys():
                 consolidate[key] += prob
             else: 
                 consolidate[key] = prob
-        #print consolidate
         
         isAllZeros = 0
         for x in consolidate: 
@@ -552,11 +532,9 @@ class JointParticleFilter:
         
         newlist = []
         consolidate.normalize()
-        #print consolidate
         for i in range(0, self.numParticles):
             newlist.append(util.sample(consolidate))
         self.particles = newlist
-        #print self.particles
 
     def getParticleWithGhostInJail(self, particle, ghostIndex):
         particle = list(particle)
@@ -604,13 +582,25 @@ class JointParticleFilter:
               but in this project all ghost agents are always the same.
         """
         newParticles = []
+
         for oldParticle in self.particles:
             newParticle = list(oldParticle) # A list of ghost positions
-
+            #print "old particle~~~~~"
+            #print newParticle
             # now loop through and update each entry in newParticle...
 
             "*** YOUR CODE HERE ***"
-
+            for i in range(self.numGhosts):
+                #print "1"
+                #print setGhostPositions(gameState, newParticle)
+                #print "2"
+                #print self.ghostAgents[i]
+                newPosDist = getPositionDistributionForGhost(setGhostPositions(gameState, newParticle),
+                                                       i, self.ghostAgents[i])
+                #print newPosDist
+                newParticle[i] = util.sample(newPosDist)
+            #print "new particle~~~~~"
+            #print newParticle
             "*** END YOUR CODE HERE ***"
             newParticles.append(tuple(newParticle))
         self.particles = newParticles
